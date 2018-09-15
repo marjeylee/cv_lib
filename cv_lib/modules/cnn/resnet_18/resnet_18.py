@@ -10,11 +10,10 @@
                    2018/9/6:
 -------------------------------------------------
 """
-from cv_lib.modules.cnn.resnet_18.config import model_config
-from cv_lib.modules.util import cnn_utils
+from modules.cnn.resnet_18.config import model_config
+from modules.util import cnn_utils
 import tensorflow as tf
 
-__author__ = 'li'
 """
 get a resnet-18 
 """
