@@ -20,6 +20,15 @@ import numpy as np
 from utility.file_path_utility import get_all_files_under_directory
 
 
+def leak_relu(x, leakness=0.2, name=None):
+    if leakness > 0.0:
+        name = 'lrelu' if name is None else name
+        return tf.maximum(x, x * leakness, name='lrelu')
+    else:
+        name = 'relu' if name is None else name
+        return tf.nn.relu(x, name='relu')
+
+
 class MaskModel(object):
 
     def __init__(self, is_training=True, mean_pixel_value=None, trainable=True):
@@ -44,7 +53,7 @@ class MaskModel(object):
         build model
         :return:
         """
-        self.input_images = tf.placeholder(dtype=tf.float32, shape=(None, None, None, 3), name='input_images')
+        self.input_images = tf.placeholder(dtype=tf.float32, shape=(None, 512, 512, 3), name='input_images')
         '''convolution layer'''
         conv_layer = self.conv_layer(self.input_images, 7, 3, 64, 2, "conv1")
         conv_norm_1 = self.batch_norm(conv_layer)
@@ -77,21 +86,25 @@ class MaskModel(object):
         in_chanel = h1.shape.dims[3].value
         h1 = self.conv_layer(h1, 1, in_chanel, 128, 1, "merge1")
         h1 = self.conv_layer(h1, 3, 128, 128, 1, name='merge1_1')
+        self.h1 = self.batch_norm(h1)
         '''merge 2'''
         h2 = self.unpool(h1)
         h2 = tf.concat((h2, self.block2_4), axis=-1)
         in_chanel = h2.shape.dims[3].value
         h2 = self.conv_layer(h2, 1, in_chanel, 64, 1, "merge2")
         h2 = self.conv_layer(h2, 3, 64, 64, 1, "merge2_1")
+        self.h2 = self.batch_norm(h2)
         '''merge 2'''
         h3 = self.unpool(h2)
         h3 = tf.concat((h3, self.block1_3), axis=-1)
         in_chanel = h3.shape.dims[3].value
         h3 = self.conv_layer(h3, 1, in_chanel, 32, 1, "merge3")
         h3 = self.conv_layer(h3, 3, 32, 32, 1, "merge3_1")
+        self.h3 = self.batch_norm(h3)
         '''merge 4'''
         h4 = self.conv_layer(h3, 3, 32, 32, 1, "merge4")
         output = self.conv_layer(h4, 1, 32, 1, 1, "merge4_1")
+        output = self.batch_norm(output)
         self.output = output
 
     @staticmethod
@@ -132,7 +145,7 @@ class MaskModel(object):
         Batchnorm
         """
         _BATCH_NORM_DECAY = 0.99
-        _BATCH_NORM_EPSILON = 1e-12
+        _BATCH_NORM_EPSILON = 1e-3
         return tf.layers.batch_normalization(inputs=inputsTensor, axis=3, momentum=_BATCH_NORM_DECAY,
                                              epsilon=_BATCH_NORM_EPSILON, center=True, scale=True,
                                              training=self.is_training)

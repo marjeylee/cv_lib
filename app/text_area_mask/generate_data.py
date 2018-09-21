@@ -39,7 +39,7 @@ def input_images_preprocess(input_images):
     r = r.reshape((shape[0], shape[1], 1))
     g = g.reshape((shape[0], shape[1], 1))
     b = b.reshape((shape[0], shape[1], 1))
-    img = np.concatenate((r, g, b), axis=2) / 255
+    img = np.concatenate((r, g, b), axis=2)
     mean_images.append(img)
     return np.concatenate(mean_images)
 
@@ -55,7 +55,7 @@ def load_training_data(random_keys):
         image_path = image_mapping[k]
         label_path = label_mapping[k]
         image = cv2.imread(image_path)
-        image = input_images_preprocess(image)
+
         shape = image.shape
         mask = np.zeros((shape[0], shape[1]))
         with open(label_path, mode='r', encoding='utf8') as file:
@@ -65,10 +65,14 @@ def load_training_data(random_keys):
                     columns = line.split(',')
                     mask[int(columns[1]):int(columns[5]), int(columns[0]):int(columns[4])] = 1
         image = resize_image(image)[0]
+        image = cv2.resize(image, (512, 512))
         shape = image.shape
-        image = image.reshape([1, shape[0], shape[1], shape[2]])
-        mask = cv2.resize(mask, (int(shape[1] / 4), int(shape[0] / 4)))
+        mask = cv2.resize(mask, (int(shape[1] / 2), int(shape[0] / 2)))
+        # save_img(image, 'img.jpg')
+        # save_img(mask.astype(np.int) * 255, 'mask.jpg')
+        image = input_images_preprocess(image)
         mask_shape = mask.shape
+        image = image.reshape([1, shape[0], shape[1], shape[2]])
         mask = mask.reshape((1, mask_shape[0], mask_shape[1]))
         images.append(image)
         labels.append(mask)
@@ -105,8 +109,10 @@ def filter_mapping(image_mapping, label_mapping):
             del image_mapping[k]
 
 
-image_dir_path = '/gpu_data/code/detection/data/ICPR2018'
-label_dir_path = '/gpu_data/code/detection/data/ICPR2018'
+image_dir_path = '/gpu_data/code/detection/data/ICPR2018/'
+label_dir_path = '/gpu_data/code/detection/data/ICPR2018/'
+# image_dir_path = 'E:\dataset\detection/'
+# label_dir_path = 'E:\dataset\detection/'
 
 
 def load_image_mapping(image_dir_path):
@@ -150,6 +156,7 @@ image_names = list(image_mapping.keys())
 
 
 def load_batch_training_data(batch_size):
+    # print('training image sizs :' + str(len(image_names)))
     random_keys = np.random.choice(image_names, size=batch_size)
     training_data = load_training_data(random_keys)
     return training_data
