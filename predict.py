@@ -44,12 +44,14 @@ def train():
     saver = tf.train.Saver()
     with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
         saver.restore(sess=sess, save_path='./model/model')
-        image_path = 'C:/Users\lr\Desktop/21\H10420180821041413/RIGHT_6.jpg'
+        image_path = 'C:/Users\lr\Desktop/21\H10420180821042010/SEA_2.jpg'
         image = cv2.imread(image_path)
         image = input_images_preprocess(image)
         image = resize_image(image)[0]
+        image = cv2.resize(image, (512, 512))
         image_shape = image.shape
         image = np.reshape(image, [1, image_shape[0], image_shape[1], image_shape[2]])
+
         feed_dict = {input_images: image}
         loss_result = sess.run(output, feed_dict=feed_dict)
         loss_result = loss_result * 255

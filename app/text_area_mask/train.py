@@ -10,7 +10,7 @@
                    2018/9/14:
 -------------------------------------------------
 """
-from app.text_area_mask.bulid_model import MaskModel
+from app.text_area_mask.bulid_model_backkk import MaskModel
 import tensorflow as tf
 
 from app.text_area_mask.generate_data import load_batch_training_data

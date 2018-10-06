@@ -31,3 +31,6 @@
 # a = np.array(a)
 # b = np.where(a > 4)
 # print(a[b])
+from utility.log.log_util import LogUtil
+
+log_util = LogUtil()

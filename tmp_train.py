@@ -10,10 +10,13 @@
                    2018/9/14:
 -------------------------------------------------
 """
+import time
+
+from app import log_util
 from app.text_area_mask.bulid_model import MaskModel
 import tensorflow as tf
 
-from app.text_area_mask.generate_data import load_batch_training_data
+from app.text_area_mask.generate_data import load_batch_training_data  # , add_training_data
 import numpy as np
 
 
@@ -34,38 +37,60 @@ def get_loss(mask_model):
     # cross_entropy = -tf.add(a, b)
 
     # cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=label, logits=output)
-    # loss = tf.reduce_sum(cross_entropy)
+    # loss = tf.reduce_sum(cross_entropy) * 10000
 
     eps = 1e-5
     intersection = tf.reduce_sum(q * p)
     union = tf.reduce_sum(q) + tf.reduce_sum(p) + eps
     loss = 1. - (2 * intersection / union)
+    loss = loss * 10000000000000
     return label, loss, output
 
 
 def train():
+    log_util.info('building model')
     mask_model = MaskModel()
     mask_model.build()
     input_images = mask_model.input_images
     label, loss, predict_output = get_loss(mask_model)
-    opt = tf.train.GradientDescentOptimizer(learning_rate=1e-1).minimize(loss)
+    opt = tf.train.AdamOptimizer(learning_rate=0.0001).minimize(loss)
     saver = tf.train.Saver()
-    with tf.Session(config=tf.ConfigProto(allow_soft_placement=True)) as sess:
+    with tf.Session(config=tf.ConfigProto()) as sess:
         # init = tf.global_variables_initializer()
         # sess.run(init)
         saver.restore(sess=sess, save_path='./model/model')
-        training_data = load_batch_training_data(20)
+        batch_size = 22
+        training_data = load_batch_training_data(batch_size)
         feed_dict = {input_images: training_data[0], label: training_data[1]}
+        satisfy = 0
+        start_time = time.time()
+        end_time = None
         for i in range(999999999999999):
-
+            if i % 2 == 0:
+                training_data = load_batch_training_data(batch_size)
+                feed_dict = {input_images: training_data[0], label: training_data[1]}
             if i % 10 == 0:
-
+                end_time = time.time()
+                during_time = end_time - start_time
+                log_util.info('batch_size : ' + str(batch_size) + ' , ' + 'cost_time :' + str(during_time / 1000.0))
+                start_time = time.time()
                 loss_result = sess.run(loss, feed_dict=feed_dict)
                 print('current step : ' + str(i) + ',loss : ' + str(loss_result))
+                opt.run(feed_dict=feed_dict)
+                loss_result = sess.run(loss, feed_dict=feed_dict)
+                print('current step : ' + str(i) + ',loss : ' + str(loss_result))
+                # if loss_result / 100000000000 < 0.02:
+                #     satisfy = satisfy + 1
+                #     log_util.info('satisfy : ' + str(satisfy))
+                #     if satisfy > 5:
+                #         satisfy = 0
+                #         add_training_data(batch_size=batch_size)
+                # else:
+                #     satisfy = 0
                 # print(sess.run(label, feed_dict=feed_dict))
-                if i % 1000 == 0:
-                    out_result = sess.run(predict_output, feed_dict=feed_dict)
-                    print(out_result)
+                # if i % 200 == 0:
+                #     out_result = sess.run(predict_output, feed_dict=feed_dict)
+                #     print(out_result)
                 # b = np.where(out_result > 4)
                 # print(b)
                 # print(out_result[b])

@@ -13,7 +13,8 @@
 import cv2
 import os
 
-from app.text_area_mask.bulid_model import resize_image
+from app import log_util
+from app.text_area_mask.bulid_model_backkk import resize_image
 from utility import show_img
 from utility.file_path_utility import get_all_files_under_directory
 from utility.image_utility import save_img
@@ -111,6 +112,8 @@ def filter_mapping(image_mapping, label_mapping):
 
 image_dir_path = '/gpu_data/code/detection/data/ICPR2018/'
 label_dir_path = '/gpu_data/code/detection/data/ICPR2018/'
+
+
 # image_dir_path = 'E:\dataset\detection/'
 # label_dir_path = 'E:\dataset\detection/'
 
@@ -153,13 +156,32 @@ def load_txt_mapping(label_dir_path):
 label_mapping = load_txt_mapping(label_dir_path)
 filter_mapping(image_mapping, label_mapping)
 image_names = list(image_mapping.keys())
+data_index = 0
+
+training_data_pool = []
+
+
+def add_data_to_pool():
+    global training_data_pool
+    training_data_pool = image_names[:data_index]
 
 
 def load_batch_training_data(batch_size):
-    # print('training image sizs :' + str(len(image_names)))
+    # global data_index
+    # if data_index == 0:
+    #     add_training_data(batch_size)
     random_keys = np.random.choice(image_names, size=batch_size)
+    # random_keys = np.random.choice(training_data_pool, size=batch_size)
     training_data = load_training_data(random_keys)
     return training_data
+
+
+# def add_training_data(batch_size):
+#     pass
+#     global data_index
+#     data_index = data_index + batch_size
+#     add_data_to_pool()
+#     log_util.info('current training data size :' + str(len(training_data_pool)))
 
 
 def main():

@@ -15,9 +15,6 @@ import math
 import cv2
 
 import tensorflow as tf
-import numpy as np
-
-from utility.file_path_utility import get_all_files_under_directory
 
 
 def leak_relu(x, leakness=0.2, name=None):
@@ -54,68 +51,34 @@ class MaskModel(object):
         :return:
         """
         self.input_images = tf.placeholder(dtype=tf.float32, shape=(None, 512, 512, 3), name='input_images')
-        '''convolution layer'''
-        conv_layer = self.conv_layer(self.input_images, 7, 3, 64, 2, "conv1")
-        conv_norm_1 = self.batch_norm(conv_layer)
-        self.conv1_relu = tf.nn.relu(conv_norm_1)
+        '''2 convolution layers,shorten to a half'''
+        # conv_layer = self.conv_layer(self.input_images, 3, 3, 64, 1, "conv1")
+        # conv_norm_1 = self.batch_norm(conv_layer)
+        # self.conv1_relu = tf.nn.relu(conv_norm_1)
+        conv_layer = self.conv_layer(self.input_images, 7, 3, 128, 2, "conv2")
+        conv_norm_2 = self.batch_norm(conv_layer)
+        self.conv1_relu_2 = tf.nn.relu(conv_norm_2)
+
         '''nesnet block 1'''
-        conv_layer = self.conv_layer(self.conv1_relu, 1, 64, 64, 2, "conv11_3")
-        block1_1 = self.res_block_3_layers(conv_layer, [64, 64, 256], "block1_1", True)
+        block1_1 = self.res_block_3_layers(self.conv1_relu_2, [64, 64, 256], "block1_1", True, block_stride=2)
         block1_2 = self.res_block_3_layers(block1_1, [64, 64, 256], "block1_2")
-        self.block1_3 = self.res_block_3_layers(block1_2, [64, 64, 256], "block1_3")
-        '''resnet block 2'''
-        block2_1 = self.res_block_3_layers(self.block1_3, [128, 128, 512], "block2_1", True, 2)
-        block2_2 = self.res_block_3_layers(block2_1, [128, 128, 512], "block2_2")
-        block2_3 = self.res_block_3_layers(block2_2, [128, 128, 512], "block2_3")
-        self.block2_4 = self.res_block_3_layers(block2_3, [128, 128, 512], "block2_4")
-        '''resnet block 3'''
-        block3_1 = self.res_block_3_layers(self.block2_4, [256, 256, 1024], "block3_1", True, 2)
-        block3_2 = self.res_block_3_layers(block3_1, [256, 256, 1024], "block3_2")
-        block3_3 = self.res_block_3_layers(block3_2, [256, 256, 1024], "block3_3")
-        block3_4 = self.res_block_3_layers(block3_3, [256, 256, 1024], "block3_4")
-        block3_5 = self.res_block_3_layers(block3_4, [256, 256, 1024], "block3_5")
-        self.block3_6 = self.res_block_3_layers(block3_5, [256, 256, 1024], "block3_6")
-        '''resnet block 4'''
-        block4_1 = self.res_block_3_layers(self.block3_6, [512, 512, 2048], "block4_1", True, 2)
-        block4_2 = self.res_block_3_layers(block4_1, [512, 512, 2048], "block4_2")
-        self.resnet_output = self.res_block_3_layers(block4_2, [512, 512, 2048], "block4_3")
-        # self.resnet_output = self.batch_norm(self.resnet_output)
+        self.block1_3 = self.res_block_3_layers(block1_2, [64, 64, 256], "block1_3")  # result
         '''merge 1'''
-        h1 = self.unpool(self.resnet_output)
-        h1 = tf.concat((h1, self.block3_6), axis=-1)
+        h1 = self.unpool(self.block1_3)
+        # h1 = tf.concat((h1, self.block3_6), axis=-1)
         in_chanel = h1.shape.dims[3].value
+        h1 = self.batch_norm(h1)
         h1 = self.conv_layer(h1, 1, in_chanel, 128, 1, "merge1")
         h1 = self.batch_norm(h1)
-        h1 = tf.nn.relu(h1)
         h1 = self.conv_layer(h1, 3, 128, 128, 1, name='merge1_1')
-        h1 = self.batch_norm(h1)
-        h1 = tf.nn.relu(h1)
-        '''merge 2'''
-        h2 = self.unpool(h1)
-        h2 = tf.concat((h2, self.block2_4), axis=-1)
-        in_chanel = h2.shape.dims[3].value
-        h2 = self.conv_layer(h2, 1, in_chanel, 64, 1, "merge2")
-        h2 = self.batch_norm(h2)
-        h2 = tf.nn.relu(h2)
-        h2 = self.conv_layer(h2, 3, 64, 64, 1, "merge2_1")
-        h2 = self.batch_norm(h2)
-        h2 = tf.nn.relu(h2)
-        '''merge 2'''
-        h3 = self.unpool(h2)
-        h3 = tf.concat((h3, self.block1_3), axis=-1)
-        in_chanel = h3.shape.dims[3].value
-        h3 = self.conv_layer(h3, 1, in_chanel, 64, 1, "merge3")
-        h3 = self.batch_norm(h3)
-        h3 = tf.nn.relu(h3)
-        h3 = self.conv_layer(h3, 3, 64, 64, 1, "merge3_1")
-        h3 = self.batch_norm(h3)
-        h3 = tf.nn.relu(h3)
-        '''merge 4'''
-        h4 = self.conv_layer(h3, 3, 64, 32, 1, "merge4")
-        output = self.conv_layer(h4, 1, 32, 32, 1, "merge4_1")
-        print('merge finish!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!')
+        '''result '''
+        h1 = tf.concat((h1, self.conv1_relu_2), axis=-1)
+        in_chanel = h1.shape.dims[3].value
+        h4 = self.conv_layer(h1, 3, in_chanel, 32, 1, "merge4")
+        h4 = self.batch_norm(h4)
+        output = self.conv_layer(h4, 1, 32, 16, 1, "merge4_1")
         output = self.batch_norm(output)
-        self.output = tf.nn.relu(output)
+        self.output = output
 
     @staticmethod
     def unpool(inputs):
@@ -145,8 +108,8 @@ class MaskModel(object):
         block_relu_2 = tf.nn.relu(block_norm_2)
 
         block_conv_3 = self.conv_layer(block_relu_2, 1, channel_list[1], channel_list[2], 1, name + "_lovalConv3")
-        block_conv_3 = self.batch_norm(block_conv_3)
-        block_res = tf.add(block_conv_input, block_conv_3)
+        block_norm_3 = self.batch_norm(block_conv_3)
+        block_res = tf.add(block_conv_input, block_norm_3)
         relu = tf.nn.relu(block_res)
         return relu
 
@@ -273,14 +236,14 @@ def resize_image(im, max_side_len=2400):
 
 def main():
     mask_model = MaskModel()
-    dir_path = 'F:\dataset\detection_result/results/00f3d476-b62a-11e8-a9c6-11533fbcc673'
-    paths = get_all_files_under_directory(dir_path)
-    images = []
-    for p in paths:
-        if p.find('.png') > 0:
-            images.append(cv2.imread(p))
-
-    # prece = mask_model.input_images_preprocess(images)
+    # dir_path = 'F:\dataset\detection_result/results/00f3d476-b62a-11e8-a9c6-11533fbcc673'
+    # paths = get_all_files_under_directory(dir_path)
+    # images = []
+    # for p in paths:
+    #     if p.find('.png') > 0:
+    #         images.append(cv2.imread(p))
+    #
+    # prece = input_images_preprocess(images)
     mask_model.build()
 
 
